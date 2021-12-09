@@ -5,26 +5,24 @@ from boto3.dynamodb.conditions import Key, Attr
 from decimal import Decimal
 import random
 import time
+import datetime
 
 requests.adapters.DEFAULT_RETRIES = 5
 
-def get_pushshift_comment(data_type, **kwargs):
-    base_url = f"https://api.pushshift.io/reddit/search/comment/"
-    payload = kwargs
-    request = requests.get(base_url, params=payload)
+
+# https://developer.twitter.com/en/docs/twitter-api/rate-limits#v2-limits
+# Twitter API v2 rate limits
+def convert_time(t):
+    return t[:10]
+
+def get_senti_score(text):
+    base_url = f"http://52.206.155.70:8080/sentiscore"
+    payload = {'text': text}
+    request = requests.get(base_url, json=payload)
+    # print(text)
+    # print(request)
     return request.json()
 
-def get_pushshift_post(data_type, **kwargs):
-    base_url = f"https://api.pushshift.io/reddit/search/submission/"
-    payload = kwargs
-    request = requests.get(base_url, params=payload)
-    return request.json()
-    
-from datetime import datetime
-def convert_time(ts):
-    dt = datetime.fromtimestamp(ts)
-    return f"{dt.year}-{dt.month}-{dt.day}"
-    
 def get_stats(arr):
     arr.sort()
     if not arr:
@@ -34,62 +32,43 @@ def get_stats(arr):
         ret[i] = round(ret[i],2)
     return ret
 
-def get_senti_score(text):
-    base_url = f"http://52.206.155.70:8080/sentiscore"
-    payload = {'text': text}
-    request = requests.get(base_url, json=payload)
-    print(text)
-    print(request)
-    return request.json()
-
 def crawler(stock):
-    data_type="comment"     # give me comments, use "submission" to publish something
-    query= stock #"tsla"          # Add your query
-    duration="24h"          # Select the timeframe. Epoch value or Integer + "s,m,h,d" (i.e. "second", "minute", "hour", "day")
-    size=10000               # maximum 1000 comments
-    sort_type="score"       # Sort by score (Accepted: "score", "num_comments", "created_utc")
-    sort="desc"             # sort descending
-    aggs="subreddit"        #"author", "link_id", "created_utc", "subreddit"
-    try:
-        comment = get_pushshift_comment(data_type=data_type,     
-                       q=query,                 
-                       after=duration,          
-                       size=size,               
-                       sort_type=sort_type,
-                       sort=sort)
-    except:
-        comment = {'data':[]}
-    try:
-        
-        post = get_pushshift_post(data_type=data_type,     
-                       q=query,                 
-                       after=duration,          
-                       size=size,               
-                       sort_type=sort_type,
-                       sort=sort)
-    except:
-        post = {'data':[]}
-        
-    # print(comment)
-    c = []
-    for each in post['data']:
-        c.append({
-            'text': (each['title'] +" . "+each['selftext'])[:100],
-            'date': convert_time(each['created_utc']) ,
-            'id': each['id']
-        })
-    # print(post)
+    
+    from datetime import date
+    today = date.today()
+    est = datetime.timedelta(hours=-5)
+    today += est
+    date = str(today)
+    
+    print("Today is " + str(date))
+
+
+    access_token = 'AAAAAAAAAAAAAAAAAAAAAM4pWQEAAAAAsI1%2BKKLpm85%2FHj9eToHnMhwrj7U%3DtTbXi7FwRuadwMewwYYQy0OryfBP0BqhDNTXj8H1GulJaETIyp'
+    search_headers = {
+        'Authorization': 'Bearer {}'.format(access_token)    
+        }
+
+   
+    stock = stock
+    base_url = 'https://api.twitter.com/'
+    search_url = f"https://api.twitter.com/2/tweets/search/recent?query={stock}&tweet.fields=created_at&expansions=author_id&user.fields=created_at&max_results=100"
+    search_resp = requests.get(search_url, headers=search_headers)
+
+    # print(search_resp.json())
+    # import emoji
+    # print(len(search_resp.json()['data']))
+    
     p = []
-    for each in comment['data']:
+    for each in search_resp.json()['data']:
+        print(each)
         p.append({
-            'text': each['body'][:100],
-            'date': convert_time(each['created_utc']),
+            'text': each['text'],
+            'date': date,
             'id': each['id']
         })
-    
-    text = p + c
+    text = p 
     scores = []
-    
+    src = 'Twitter'
     
     for i, each in enumerate(text):
         score = get_senti_score(each['text'])# random.randrange(-100,100)*0.01
@@ -97,15 +76,8 @@ def crawler(stock):
         scores.append(s)
         text[i]['score'] = s
     
-    from datetime import date
-    import datetime
-    today = date.today()
-    est = datetime.timedelta(hours=-5)
-    today += est
-    date = str(today)
     
-    print(date)
-    stock = query
+    # stock = query
     
     dynamodb = boto3.resource('dynamodb')
     table = dynamodb.Table('meme_stock_history')
@@ -114,8 +86,9 @@ def crawler(stock):
             'rid': f'{stock}_{date}'
         }
     )
-    print(response)
-    src = 'Reddit'
+    # .scan(FilterExpression=Attr('stock').eq(stock) & Attr('date').eq() )
+    # print(response)
+    
     
     
     if 'Item' not in response:
@@ -137,10 +110,10 @@ def crawler(stock):
                 'v': 0
                 
             }
-        response = table.put_item (
+        response = table.put_item(
             Item = json.loads(json.dumps(data), parse_float=Decimal)
         )
-        print (response)
+        # print (response)
         
         
     else:
@@ -187,8 +160,11 @@ def crawler(stock):
             Item = json.loads(json.dumps(data), parse_float=Decimal)
         )
         # print (response)
-    print(data)
+    # print(data)
         
+        
+    
+    
     
 
 def lambda_handler(event, context):
@@ -199,7 +175,7 @@ def lambda_handler(event, context):
             'rid': 'stock_tickers'
         }
     )
-    print(response)
+    # print(response)
     stocks = []
     for each in response['Item']['tickers']:
         stocks.append(each)
