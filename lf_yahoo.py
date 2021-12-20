@@ -27,23 +27,33 @@ def lambda_handler(event, context):
     print(stocks)
     
     all_data = []
-    for stock in stocks:
+    _start, _end = 10,12
+    for stock in stocks[_start: _end]:
         
     
         stock = stock.lower() #'tsla'.lower()
         d = get_price(stock, '')
         d['body']['price_date'] = eval(d['body']['price_date'])
-        print(type(d['body']['price_date']))
-        for _close in [ i for i in reversed(sorted(d['body']['price_date']))][:3]:
+        
+        print(stock)
+        print(d['body']['price_date'])
+        
+        for _close in [ i for i in reversed(sorted(d['body']['price_date']))][:5]:
             
             date = str(_close)[:10]
-            response = table.scan(FilterExpression=Attr('stock').eq(stock) & Attr('date').eq(date) )
+            print(f'{stock}_{date}')
+            response = table.get_item(
+                Key={
+                    'rid': f'{stock}_{date}'
+                }
+            )
             data = None
             print(date)
             print(stock)
             print(d['body']['price_date'][_close])
-            print(len(response['Items']))
-            if len(response['Items']) == 0:
+            print(response)
+            # print(len(response['Items']))
+            if 'Item' not in response:
                 data = {
                         'rid': f"{stock}_{date}".lower(),
                         'stock': stock,
@@ -61,15 +71,13 @@ def lambda_handler(event, context):
                 print(data)
                 
             else:
-                if 'price' in response['Items'][0] and response['Items'][0]['price']:
-                    continue
-                else:
-                    data = response['Items'][0]
-                    data['price'] = {
-                            'close': d['body']['price_date'][_close]
-                        }
-                    data['v'] += 1
-                    data['v'] = float(data['v'])
+                
+                data = response['Item']
+                data['price'] = {
+                        'close': d['body']['price_date'][_close]
+                    }
+                data['v'] += 1
+                data['v'] = float(data['v'])
                         
        
                         
@@ -88,8 +96,8 @@ def lambda_handler(event, context):
                 Item = json.loads(json.dumps(data), parse_float=Decimal)
             )
             
-            print(response)
-        time.sleep(2)
+            # print(response)
+            time.sleep(3)
             
 
     return {

@@ -36,8 +36,8 @@ def crawler(stock):
     
     from datetime import date
     today = date.today()
-    est = datetime.timedelta(hours=-5)
-    today += est
+    # est = datetime.timedelta(hours=-5)
+    # today += est
     date = str(today)
     
     print("Today is " + str(date))

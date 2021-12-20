@@ -38,8 +38,8 @@ def get_senti_score(text):
     base_url = f"http://52.206.155.70:8080/sentiscore"
     payload = {'text': text}
     request = requests.get(base_url, json=payload)
-    print(text)
-    print(request)
+    # print(text)
+    # print(request)
     return request.json()
 
 def crawler(stock):
@@ -100,8 +100,8 @@ def crawler(stock):
     from datetime import date
     import datetime
     today = date.today()
-    est = datetime.timedelta(hours=-5)
-    today += est
+    # est = datetime.timedelta(hours=-5)
+    # today += est
     date = str(today)
     
     print(date)
@@ -114,7 +114,7 @@ def crawler(stock):
             'rid': f'{stock}_{date}'
         }
     )
-    print(response)
+    # print(response)
     src = 'Reddit'
     
     
@@ -140,7 +140,7 @@ def crawler(stock):
         response = table.put_item (
             Item = json.loads(json.dumps(data), parse_float=Decimal)
         )
-        print (response)
+        # print (response)
         
         
     else:
@@ -210,7 +210,7 @@ def lambda_handler(event, context):
     res = []
     for stock in stocks:
         print("crawling: "+stock)
-        print( type(stock) )
+        # print( type(stock) )
         crawler(str(stock))
         time.sleep(2)
         # res.append(response)
