@@ -1,5 +1,10 @@
 # memestocks AWS components
 
+### Architecture
+
+![alt text](https://github.com/MemestockSentiTracker/memestocks_backend/blob/main/Architecture.png?raw=true)
+
+
 ### API Gateway
 - MemeStockProject: MemeStockProject-dev-swagger.json
 
